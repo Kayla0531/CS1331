@@ -35,7 +35,7 @@ public class Jordle extends Application implements EventHandler<KeyEvent> {
     int inputColIndex = 0;
     int inputRowIndex = 0;
     String answer = getAnswer();
-    ArrayList<String> currLine = new ArrayList<String>();
+    String[] currLine = new String[5];
     GridPane board = new GridPane();
     Text lastInput = new Text();
 
@@ -48,7 +48,7 @@ public class Jordle extends Application implements EventHandler<KeyEvent> {
         inputRowIndex = 0;
         //input = new Text();
         answer = getAnswer();
-        currLine = new ArrayList<String> ();
+        currLine = new String[5];
     }
     /**
     class Cell extends StackPane {
@@ -120,45 +120,73 @@ public class Jordle extends Application implements EventHandler<KeyEvent> {
         primaryStage.setScene(scene); // Place the scene in the stage
         primaryStage.show(); // Display the stage
     }
+    class Cell extends StackPane {
+        private Paint bgdColor = Color.BLACK;
+        private Rectangle bgdRect = new Rectangle(52, 52, bgdColor);
+        private Text text = new Text();
+        private Paint fillColor = Color.WHITE;
+        private Rectangle fillRect = new Rectangle(50, 50, fillColor);
+        Cell(String t) {
+            text.setText(t);
+            fillColor = name;
+            this.add(bgdRect);
+            this.add(fillRect);
+            this.add(text);
+        }
+        Cell() {
+            this(new Text());
+        }
+        void setBgdColor(Paint newColor) {
+            bgdColor = newColor;
+            this.bgdRect = new Rectangle(52, 52, bgdColor);
+        }
+        Paint getBgd() {
+            return bgdColor;
+        }
+        void setFillColor(Paint newColor) {
+            fillColor = newColor;
+            this.fillRect = new Rectangle(50, 50, fillColor);
+        }
+        Paint getFill() {
+            return fillColor;
+        }
+        void setText(String newS) {
+            text.setText(newS);
+        }
+        String getText() {
+            return text.toString();
+        }
+    }
     @Override
     public void handle(KeyEvent event) {
         KeyCode code = event.getCode();
         Text input = new Text();
         if (code.isLetterKey()) {
-            System.out.println(inputColIndex);
-            if (currLine.size() -1 >= inputColIndex) {
+            while (currLine[inputColIndex] != null) {
                 inputColIndex++;
             }
-            input.setText(code.toString());
-            currLine.add(code.toString());
-            if (inputColIndex < 4) {
-                inputColIndex++;
+            if (inputColIndex < 5) {
+                input.setText(code.toString());
+                input.setFont(new Font("Times New Roman Bold", 30));
+                board.add(input, inputColIndex, inputRowIndex);
+                currLine[inputColIndex] = code.toString();
             }
-            board.add(input, inputColIndex, inputRowIndex);
-            input.setFont(new Font("Times New Roman Bold", 30));
-            setObjectCenter(input);
-            lastInput = input;
         }
         if (code.equals(KeyCode.BACK_SPACE)) {
-            if (inputColIndex > 0) {
-                System.out.println("about to minus 1 : "+inputColIndex);
+            while (currLine[inputColIndex] == null) {
                 inputColIndex--;
-                lastInput.setText(currLine.get(inputColIndex));
-                System.out.println(currLine.get(inputColIndex));
-                currLine.remove(inputColIndex);
-                System.out.println(board.getChildren().remove(lastInput));
-                inputColIndex++;
-                /**
-                board.add(input, inputColIndex, inputRowIndex);
-                input.setFont(new Font("Times New Roman Bold", 30));
-                setObjectCenter(input);
-                */
+            }
+            if (inputColIndex >= 0) {
+                Text toBeRemoved = new Text();
+                toBeRemoved.setText(currLine[inputColIndex]);
+                currLine[inputColIndex] = null;
+                board.getChildren().remove(toBeRemoved);
             }
         }
         if (code.equals(KeyCode.ENTER)) {
-            if (currLine.size() == 5) {
+            if (currLine[4] != null) {
                 evaluateLine(currLine);
-                currLine = new ArrayList<String>();
+                currLine = new String[5];
                 inputRowIndex++;
                 inputColIndex = 0;
             } else {
@@ -190,12 +218,12 @@ public class Jordle extends Application implements EventHandler<KeyEvent> {
         }
         return counter;
     }
-    char[] evaluateLine(ArrayList<String> line) {
+    char[] evaluateLine(String[] line) {
         char[] res = new char[5];
         int[] charCount = charCounter(answer);
         // first loop is to find out all chars at right position
         for (int i = 0; i < 5; i++) {
-            String inputWord = line.get(i).toUpperCase();
+            String inputWord = line[i].toUpperCase();
             char ansChar = answer.charAt(i);
             char inputChar = inputWord.charAt(0);
             if (ansChar == inputChar) {
@@ -205,7 +233,7 @@ public class Jordle extends Application implements EventHandler<KeyEvent> {
         }
         // second loop looks for char that exist but not at right position
         for (int i = 0; i < 5; i++) {
-            char inputChar = line.get(i).charAt(0);
+            char inputChar = line[i].charAt(0);
             if (res[i] != '\u0000') {
                 continue;
             } else if (charCount[(int) inputChar - 65] > 0) {
