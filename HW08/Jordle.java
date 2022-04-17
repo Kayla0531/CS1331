@@ -38,6 +38,15 @@ public class Jordle extends Application implements EventHandler<KeyEvent> {
     String[] currLine = new String[5];
     GridPane board = new GridPane();
     Text lastInput = new Text();
+    
+    ArrayList<Cell> setCurrCells() {
+        ArrayList<Cell> list = new ArrayList<Cell>();
+        for (int i = 0; i < 5; i++) {
+            list.add(new Cell());
+        }
+        return list;
+    }
+    ArrayList<Cell> currCells = setCurrCells();
 
     @Override
     public void start(Stage primaryStage) {
@@ -77,12 +86,17 @@ public class Jordle extends Application implements EventHandler<KeyEvent> {
         board.setVgap(5);
         for (int r = 0; r < 6; r++) {
             for (int c = 0; c < 5; c++) {
+                /**
                 Rectangle box = new Rectangle(50, 50, Color.WHITE);
                 Rectangle outer = new Rectangle(52, 52, Color.BLACK);
                 board.add(outer, c, r);
                 setObjectCenter(outer);
                 board.add(box, c, r);
                 setObjectCenter(box);
+                scene.setOnKeyPressed(this);
+                */
+                Cell cell = new Cell();
+                board.add(cell, c, r);
                 scene.setOnKeyPressed(this);
                 
             }
@@ -121,79 +135,110 @@ public class Jordle extends Application implements EventHandler<KeyEvent> {
         primaryStage.show(); // Display the stage
     }
     class Cell extends StackPane {
-        private Paint bgdColor = Color.BLACK;
+        private Paint bgdColor = Color.LIGHTGRAY;
         private Rectangle bgdRect = new Rectangle(52, 52, bgdColor);
         private Text text = new Text();
         private Paint fillColor = Color.WHITE;
         private Rectangle fillRect = new Rectangle(50, 50, fillColor);
-        Cell(String t) {
+        Cell(String t, Paint bgd, Paint fill) {
             text.setText(t);
-            fillColor = name;
-            this.add(bgdRect);
-            this.add(fillRect);
-            this.add(text);
+            text.setFont(new Font("Times New Roman Bold", 30));
+            bgdRect = new Rectangle(52, 52, bgd);
+            fillRect = new Rectangle(50, 50, fill);
+            this.getChildren().addAll(bgdRect, fillRect, text);
+            setObjectCenter(bgdRect);
+            setObjectCenter(fillRect);
+            setObjectCenter(text);
+        }
+        Cell(String t) {
+            this(t, Color.LIGHTGRAY, Color.WHITE);
         }
         Cell() {
-            this(new Text());
+            this("");
+        }
+        Cell(Cell ref) {
+            this(ref.getText(), ref.getBgd(), ref.getFill());
         }
         void setBgdColor(Paint newColor) {
             bgdColor = newColor;
+            this.getChildren().remove(bgdRect);
             this.bgdRect = new Rectangle(52, 52, bgdColor);
+            this.getChildren().add(bgdRect);
+            setObjectCenter(bgdRect);
         }
         Paint getBgd() {
             return bgdColor;
         }
         void setFillColor(Paint newColor) {
             fillColor = newColor;
+            this.getChildren().remove(fillRect);
             this.fillRect = new Rectangle(50, 50, fillColor);
+            this.getChildren().add(fillRect);
+            setObjectCenter(fillRect);
         }
         Paint getFill() {
             return fillColor;
         }
         void setText(String newS) {
+            this.getChildren().remove(text);
             text.setText(newS);
+            this.getChildren().add(text);
+            text.setFont(new Font("Times New Roman Bold", 30));
+            setObjectCenter(text);
         }
         String getText() {
-            return text.toString();
+            return text.getText();
         }
     }
     @Override
     public void handle(KeyEvent event) {
         KeyCode code = event.getCode();
-        Text input = new Text();
         if (code.isLetterKey()) {
-            while (currLine[inputColIndex] != null) {
-                inputColIndex++;
-            }
+            String input = code.toString();
             if (inputColIndex < 5) {
-                input.setText(code.toString());
-                input.setFont(new Font("Times New Roman Bold", 30));
-                board.add(input, inputColIndex, inputRowIndex);
-                currLine[inputColIndex] = code.toString();
+                board.getChildren().remove(currCells.get(inputColIndex));
+                Cell newCell = new Cell(input);
+                currCells.set(inputColIndex, newCell);
+                board.add(newCell, inputColIndex, inputRowIndex);
+                inputColIndex++;
             }
         }
         if (code.equals(KeyCode.BACK_SPACE)) {
-            while (currLine[inputColIndex] == null) {
+            if (inputColIndex > 0) {
                 inputColIndex--;
-            }
-            if (inputColIndex >= 0) {
-                Text toBeRemoved = new Text();
-                toBeRemoved.setText(currLine[inputColIndex]);
-                currLine[inputColIndex] = null;
-                board.getChildren().remove(toBeRemoved);
+                board.getChildren().remove(currCells.get(inputColIndex));
+                
+                Cell newCell = new Cell();
+                currCells.set(inputColIndex, newCell);
+                board.add(newCell, inputColIndex, inputRowIndex);
             }
         }
         if (code.equals(KeyCode.ENTER)) {
-            if (currLine[4] != null) {
-                evaluateLine(currLine);
-                currLine = new String[5];
+            if (inputColIndex >= 5) {
+                for (int i = 0; i < 5; i++) {
+                    currLine[i] = currCells.get(i).getText();
+                }
+                Paint[] newColors = evaluateLine(currLine);
+                for (int i = 0; i < 5; i++) {
+                    Cell newCell = new Cell(currCells.get(i));
+                    newCell.setBgdColor(newColors[i]);
+                    newCell.setText(currCells.get(i).getText());
+                    board.getChildren().remove(currCells.get(i));
+                    currCells.set(i, newCell);
+                    board.add(newCell, i, inputRowIndex);
+                }
                 inputRowIndex++;
+                currCells = setCurrCells();
                 inputColIndex = 0;
-            } else {
-                System.out.println("wait till you have put 5 chars");
-                // an alert panel saying invalid input
+            }
+            if (inputRowIndex == 6) {
+                endGame();
             }
         }
+    }
+    private void endGame(){
+        // an alert windows shows up
+        System.out.println("Game Ended!");
     }
     private static void setObjectCenter(Shape object) {
         GridPane.setHalignment(object, HPos.CENTER);
@@ -218,34 +263,39 @@ public class Jordle extends Application implements EventHandler<KeyEvent> {
         }
         return counter;
     }
-    char[] evaluateLine(String[] line) {
-        char[] res = new char[5];
+    Paint[] evaluateLine(String[] line) {
+        Paint[] res = new Paint[5];
         int[] charCount = charCounter(answer);
+        answer = answer.toUpperCase();
         // first loop is to find out all chars at right position
         for (int i = 0; i < 5; i++) {
-            String inputWord = line[i].toUpperCase();
+            String inputStr = line[i].toUpperCase();
             char ansChar = answer.charAt(i);
-            char inputChar = inputWord.charAt(0);
+            char inputChar = inputStr.charAt(0);
+            if ((int) inputChar > 90 || (int) inputChar < 65) {
+                res[i] = Color.LIGHTGRAY;
+                continue;
+            }
             if (ansChar == inputChar) {
                 charCount[(int)inputChar - 65]--;
-                res[i] = 'G'; // should be set to green using setFill
+                res[i] = Color.LIGHTGREEN; // should be set to green using setFill            
             }
         }
-        // second loop looks for char that exist but not at right position
-        for (int i = 0; i < 5; i++) {
-            char inputChar = line[i].charAt(0);
-            if (res[i] != '\u0000') {
+        for (int j = 0; j < 5; j++) {
+            String inputStr = line[j].toUpperCase();
+            char ansChar = answer.charAt(j);
+            char inputChar = inputStr.charAt(0);
+            if (res[j] != null) {
                 continue;
-            } else if (charCount[(int) inputChar - 65] > 0) {
-                res[i] = 'Y'; // assigned yellow
+            }
+            if (charCount[(int) inputChar - 65] > 0) {
+                res[j] = Color.LIGHTYELLOW;
+                charCount[(int) inputChar - 65]--;
             } else {
-                res[i] = 'N'; // not found, assigned gray                
+                res[j] = Color.LIGHTGRAY;
             }
         }
         return res;
-    }
-    void checkChar(char c, int[] counts) {
-        //if 
     }
 }
 class TextPane extends StackPane {
